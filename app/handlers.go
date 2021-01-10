@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,6 +27,10 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.getAllDonors)
 
 	app.Router.
+		Methods("POST").
+		Path("/accounts/donors").
+		HandlerFunc(app.addDonor)
+	app.Router.
 		Methods("GET").
 		Path("/accounts/donors/{id:[0-9]+}").
 		HandlerFunc(app.getDonorByID)
@@ -42,12 +47,12 @@ func (app *App) SetupRouter() {
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/donors/{bloodGroup:[a-z][A-Z]+}").
+		Path("/accounts/donors/{bloodGroup:[a-z]+}").
 		HandlerFunc(app.getDonorsByBloodGroup)
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/acceptors/{bloodGroup:[a-z][A-Z]+}").
+		Path("/accounts/acceptors/{bloodGroup:[a-z]+}").
 		HandlerFunc(app.getAcceptorsByBloodGroup)
 }
 
@@ -64,8 +69,24 @@ func (app *App) getAllAcceptors(w http.ResponseWriter, _ *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors")
 }
 
-func (app *App) getDonorByID(w http.ResponseWriter, _ *http.Request) {
+func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors/:id")
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+
+	donor := &Donor{}
+	err := app.Database.QueryRow("SELECT * from `donors` WHERE id = ?", id).Scan(&donor)
+	if err != nil {
+		log.Fatal("Database SELECT failed")
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(donor); err != nil {
+		panic(err)
+	}
 }
 
 func (app *App) updateDonorByID(w http.ResponseWriter, _ *http.Request) {
@@ -82,4 +103,28 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, _ *http.Request) {
 
 func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, _ *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/:bloodGroup")
+}
+
+func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Endpoint Hit: POST /accounts/donors")
+	donor := &Donor{ID: "12", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB+", City: "Kardzhali", BloodCenter: "МБАЛ д-р Атанас Дафовски", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
+	_, err := app.Database.Exec(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, bloodCenter, regDate)
+								VALUES ('?','?','?','?','?','?','?','?','?', '?', '?');`,
+		donor.ID,
+		donor.FirstName,
+		donor.LastName,
+		donor.PhoneNumber,
+		donor.Email,
+		donor.Age,
+		donor.Gender,
+		donor.BloodGroup,
+		donor.City,
+		donor.BloodCenter,
+		donor.RegistrationDate)
+
+	if err != nil {
+		log.Fatal("Database INSERT failed")
+		log.Printf(err.Error())
+	}
+	w.WriteHeader(http.StatusOK)
 }

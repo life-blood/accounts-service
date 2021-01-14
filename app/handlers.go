@@ -49,12 +49,12 @@ func (app *App) SetupRouter() {
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/donors/{bloodGroup:[a-zA-Z]+}").
+		Path("/accounts/donors/{bloodGroup:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getDonorsByBloodGroup)
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/acceptors/{bloodGroup:[a-zA-Z]+}").
+		Path("/accounts/acceptors/{bloodGroup:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getAcceptorsByBloodGroup)
 }
 
@@ -180,12 +180,87 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, _ *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/acceptors/:id")
 }
 
-func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, _ *http.Request) {
+func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors/:bloodGroup")
+	vars := mux.Vars(r)
+	bloodGroup, ok := vars["bloodGroup"]
+	if !ok {
+		log.Fatal("No bloodGroup in the path")
+	}
+	donorsWithBloodGroup := make([]Donor, 0)
+	rows, err := app.Database.Query(`SELECT * FROM donors WHERE bloodGroup=?`, bloodGroup)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
+		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		donorsWithBloodGroup = append(donorsWithBloodGroup, Donor{
+			ID:               id,
+			FirstName:        name,
+			LastName:         lastname,
+			PhoneNumber:      phone,
+			Email:            email,
+			Age:              age,
+			Gender:           gender,
+			BloodGroup:       bloodGroup,
+			City:             city,
+			RegistrationDate: regDate})
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf(err.Error())
+		log.Fatal(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(donorsWithBloodGroup); err != nil {
+		panic(err)
+	}
 }
 
-func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, _ *http.Request) {
+func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/:bloodGroup")
+	vars := mux.Vars(r)
+	bloodGroup, ok := vars["bloodGroup"]
+	if !ok {
+		log.Fatal("No bloodGroup in the path")
+	}
+	acceptorsWithBloodGroup := make([]Acceptor, 0)
+	rows, err := app.Database.Query(`SELECT * FROM acceptors WHERE bloodGroup=?`, bloodGroup)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, name, lastname, bloodGroup, city, bloodCenter, regDate string
+		err := rows.Scan(&id, &name, &lastname, &bloodGroup, &city, &bloodCenter, &regDate)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		acceptorsWithBloodGroup = append(acceptorsWithBloodGroup, Acceptor{
+			ID:               id,
+			FirstName:        name,
+			LastName:         lastname,
+			BloodGroup:       bloodGroup,
+			City:             city,
+			BloodCenter:      bloodCenter,
+			RegistrationDate: regDate})
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf(err.Error())
+		log.Fatal(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(acceptorsWithBloodGroup); err != nil {
+		panic(err)
+	}
 }
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {

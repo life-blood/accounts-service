@@ -107,5 +107,29 @@ func CreateDatabaseConn() (*sql.DB, error) {
 		log.Printf("Mock data 2 added...")
 	}
 
+	mockdata3, err := db.Prepare(`INSERT INTO donors(id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
+								VALUES ('1','Petka','Petrova','08978654321','ivanp@abv.bg','31','MALE','B','Sofia', 'Sun Mar 15 02:44:15 EET 2019');`)
+	if err != nil {
+		log.Printf(err.Error())
+	}
+	_, err = mockdata3.Exec()
+	if err != nil {
+		log.Printf(err.Error())
+	} else {
+		log.Printf("Mock data 3 added...")
+	}
+
+	mockdata4, err := db.Prepare(`INSERT INTO acceptors(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
+								VALUES ('2','Ivaylo','Yosifov','0','Plovdiv', 'Pulmed', 'Sun Mar 16 02:44:15 EET 2020');`)
+	if err != nil {
+		log.Printf(err.Error())
+	}
+	_, err = mockdata4.Exec()
+	if err != nil {
+		log.Printf(err.Error())
+	} else {
+		log.Printf("Mock data 4 added...")
+	}
+
 	return db, nil
 }

@@ -41,7 +41,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 	}
 
 	stmtAcceptors, err := db.Prepare(`CREATE TABLE acceptors (
-								id int NOT NULL,
+								id varchar(32) NOT NULL,
 								name varchar(32),
 								lastName varchar(32),
 								bloodGroup varchar(32),
@@ -61,7 +61,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 	}
 
 	stmtDonors, err := db.Prepare(`CREATE TABLE donors (
-								id int NOT NULL,
+								id varchar(32) NOT NULL,
 								name varchar(32),
 								lastName varchar(32),
 								phone varchar(32),

@@ -11,7 +11,6 @@ type Donor struct {
 	BloodGroup       string `json:"bloodGroup"`
 	City             string `json:"city"`
 	BloodCenter      string `json:"bloodCenter"`
-	HealthStatus     string `json:"healthStatus"`
 	RegistrationDate string `json:"regDate"`
 }
 

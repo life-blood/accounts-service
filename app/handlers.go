@@ -52,7 +52,7 @@ func (app *App) SetupRouter() {
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/acceptors/{bloodGroup:[a-z]+}").
+		Path("/accounts/acceptors/{bloodGroup:[a-zA-Z]+}").
 		HandlerFunc(app.getAcceptorsByBloodGroup)
 }
 
@@ -76,9 +76,19 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Fatal("No ID in the path")
 	}
-
-	donor := &Donor{}
-	err := app.Database.QueryRow("SELECT * from `donors` WHERE id = ?", id).Scan(&donor)
+	donor := Donor{}
+	err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
+		&donor.ID,
+		&donor.FirstName,
+		&donor.LastName,
+		&donor.PhoneNumber,
+		&donor.Email,
+		&donor.Age,
+		&donor.Gender,
+		&donor.BloodGroup,
+		&donor.City,
+		&donor.BloodCenter,
+		&donor.RegistrationDate)
 	if err != nil {
 		log.Fatal("Database SELECT failed")
 	}
@@ -107,7 +117,7 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, _ *http.Request)
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/donors")
-	donor := &Donor{ID: "12", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB+", City: "Kardzhali", BloodCenter: "МБАЛ д-р Атанас Дафовски", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
+	donor := Donor{ID: "14", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB+", City: "Kardzhali", BloodCenter: "МБАЛ д-р Атанас Дафовски", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
 	_, err := app.Database.Exec(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, bloodCenter, regDate)
 								VALUES ('?','?','?','?','?','?','?','?','?', '?', '?');`,
 		donor.ID,

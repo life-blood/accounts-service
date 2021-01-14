@@ -48,7 +48,6 @@ func CreateDatabaseConn() (*sql.DB, error) {
 								city varchar(50),
 								bloodCenter varchar(100),
 								regDate varchar(32),
-								healthStatus varchar(32),
 								PRIMARY KEY (id));`)
 	if err != nil {
 		log.Printf(err.Error())
@@ -70,7 +69,6 @@ func CreateDatabaseConn() (*sql.DB, error) {
 								gender varchar(32),
 								bloodGroup varchar(32),
 								city varchar(50),
-								bloodCenter varchar(100),
 								regDate varchar(32),
 								PRIMARY KEY (id)
 						);`)
@@ -85,16 +83,28 @@ func CreateDatabaseConn() (*sql.DB, error) {
 		log.Printf("Donors table created successfully...")
 	}
 
-	mockdata, err := db.Prepare(`INSERT INTO donors(id, name, lastName, phone, email, age, gender, bloodGroup, city, bloodCenter, regDate)
-								VALUES ('12','Ivan','Petrov','08978654321','ivanp@abv.bg','31','MALE','AB+','Sofia', 'Pirogof', 'Sun Mar 15 02:44:15 EET 2019');`)
+	mockdata1, err := db.Prepare(`INSERT INTO donors(id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
+								VALUES ('12','Ivan','Petrov','08978654321','ivanp@abv.bg','31','MALE','AB','Sofia', 'Sun Mar 15 02:44:15 EET 2019');`)
 	if err != nil {
 		log.Printf(err.Error())
 	}
-	_, err = mockdata.Exec()
+	_, err = mockdata1.Exec()
 	if err != nil {
 		log.Printf(err.Error())
 	} else {
-		log.Printf("Mock data added...")
+		log.Printf("Mock data 1 added...")
+	}
+
+	mockdata2, err := db.Prepare(`INSERT INTO acceptors(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
+								VALUES ('12','Ivan','Petrov','AB','Sofia', 'Pirogof', 'Sun Mar 15 02:44:15 EET 2019');`)
+	if err != nil {
+		log.Printf(err.Error())
+	}
+	_, err = mockdata2.Exec()
+	if err != nil {
+		log.Printf(err.Error())
+	} else {
+		log.Printf("Mock data 2 added...")
 	}
 
 	return db, nil

@@ -32,10 +32,16 @@ func (app *App) SetupRouter() {
 		Methods("POST").
 		Path("/accounts/donors").
 		HandlerFunc(app.addDonor)
+
 	app.Router.
 		Methods("GET").
 		Path("/accounts/donors/{id:[0-9]+}").
 		HandlerFunc(app.getDonorByID)
+
+	app.Router.
+		Methods("GET").
+		Path("/accounts/acceptors/{id:[0-9]+}").
+		HandlerFunc(app.getAcceptorByID)
 
 	app.Router.
 		Methods("GET").
@@ -168,6 +174,33 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(donor); err != nil {
+		panic(err)
+	}
+}
+
+func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Endpoint Hit: GET /accounts/acceptors/:id")
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+	acceptor := Acceptor{}
+	err := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
+		&acceptor.ID,
+		&acceptor.FirstName,
+		&acceptor.LastName,
+		&acceptor.BloodGroup,
+		&acceptor.City,
+		&acceptor.BloodCenter,
+		&acceptor.RegistrationDate)
+	if err != nil {
+		log.Printf(err.Error())
+		log.Fatal("Database SELECT failed")
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(acceptor); err != nil {
 		panic(err)
 	}
 }

@@ -61,8 +61,43 @@ func (app *App) homePage(w http.ResponseWriter, _ *http.Request) {
 	log.Printf("Endpoint Hit: GET /")
 }
 
-func (app *App) getAllDonors(w http.ResponseWriter, _ *http.Request) {
+func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors")
+	donors := make([]Donor, 0)
+	rows, err := app.Database.Query(`SELECT * FROM donors;`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, name, lastname, phone, email, age, gender, bloodGroup, city, bloodCenter, regDate string
+		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &bloodCenter, &regDate)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		donors = append(donors, Donor{
+			ID:               id,
+			FirstName:        name,
+			LastName:         lastname,
+			PhoneNumber:      phone,
+			Email:            email,
+			Age:              age,
+			Gender:           gender,
+			BloodGroup:       bloodGroup,
+			City:             city,
+			BloodCenter:      bloodCenter,
+			RegistrationDate: regDate})
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf(err.Error())
+		log.Fatal(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(donors); err != nil {
+		panic(err)
+	}
 }
 
 func (app *App) getAllAcceptors(w http.ResponseWriter, _ *http.Request) {
@@ -90,6 +125,7 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 		&donor.BloodCenter,
 		&donor.RegistrationDate)
 	if err != nil {
+		log.Printf(err.Error())
 		log.Fatal("Database SELECT failed")
 	}
 
@@ -117,7 +153,7 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, _ *http.Request)
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/donors")
-	donor := Donor{ID: "14", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB+", City: "Kardzhali", BloodCenter: "МБАЛ д-р Атанас Дафовски", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
+	donor := Donor{ID: "14", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB", City: "Kardzhali", BloodCenter: "МБАЛ д-р Атанас Дафовски", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
 	_, err := app.Database.Exec(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, bloodCenter, regDate)
 								VALUES ('?','?','?','?','?','?','?','?','?', '?', '?');`,
 		donor.ID,
@@ -133,8 +169,8 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 		donor.RegistrationDate)
 
 	if err != nil {
-		log.Fatal("Database INSERT failed")
 		log.Printf(err.Error())
+		log.Fatal("Database INSERT failed")
 	}
 	w.WriteHeader(http.StatusOK)
 }

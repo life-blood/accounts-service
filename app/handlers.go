@@ -10,11 +10,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// App is a wrapper struct over Router and Database used to manage db connections and endpoint requests centrally
 type App struct {
 	Router   *mux.Router
 	Database *sql.DB
 }
 
+// SetupRouter is used to provide mapping between different endpoints hit and handler functions
 func (app *App) SetupRouter() {
 	app.Router.
 		Methods("GET").

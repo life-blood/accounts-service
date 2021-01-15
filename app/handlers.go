@@ -37,14 +37,29 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.addDonor)
 
 	app.Router.
+		Methods("POST").
+		Path("/accounts/acceptors").
+		HandlerFunc(app.addAcceptor)
+
+	app.Router.
 		Methods("GET").
 		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getDonorByID)
 
 	app.Router.
+		Methods("DELETE").
+		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
+		HandlerFunc(app.deleteDonorByID)
+
+	app.Router.
 		Methods("GET").
 		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getAcceptorByID)
+
+	app.Router.
+		Methods("DELETE").
+		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
+		HandlerFunc(app.deleteAcceptorByID)
 
 	app.Router.
 		Methods("GET").
@@ -102,6 +117,7 @@ func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -172,7 +188,8 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 		&donor.RegistrationDate)
 	if err != nil {
 		log.Printf(err.Error())
-		log.Fatal("Database SELECT failed")
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database SELECT from donors failed")
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -199,7 +216,8 @@ func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 		&acceptor.RegistrationDate)
 	if err != nil {
 		log.Printf(err.Error())
-		log.Fatal("Database SELECT failed")
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database SELECT from acceptors failed")
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -278,6 +296,7 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -318,6 +337,7 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request)
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -358,8 +378,83 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal("Database INSERT to donors failed")
 	}
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Endpoint Hit: POST /accounts/acceptors")
+	stmt, err := app.Database.Prepare(`INSERT INTO acceptors (id, name, lastName, bloodGroup, city, bloodCenter, regDate)
+	VALUES (?,?,?,?,?,?,?);`)
+	if err != nil {
+		panic(err.Error())
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	reqData := make(map[string]string)
+	json.Unmarshal(body, &reqData)
+	id := shortuuid.New()
+	name := reqData["name"]
+	lastName := reqData["lastName"]
+	bloodCenter := reqData["bloodCenter"]
+	bloodGroup := reqData["bloodGroup"]
+	city := reqData["city"]
+	timeNow := time.Now()
+	regDate := timeNow.Format("2006-01-02 15:04:05")
+
+	_, err = stmt.Exec(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if err != nil {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database INSERT to acceptors failed")
+	}
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Endpoint Hit: DELETE /accounts/donors/:id")
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+
+	_, err := app.Database.Query(`DELETE FROM donors WHERE id=?`, id)
+	if err != nil {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database DELETE failed")
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Endpoint Hit: DELETE /accounts/acceptor/:id")
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+
+	_, err := app.Database.Query(`DELETE FROM acceptors WHERE id=?`, id)
+	if err != nil {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database DELETE failed")
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 }

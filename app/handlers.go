@@ -101,6 +101,7 @@ func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	donorsCount := 0
 	for rows.Next() {
 		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
 		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
@@ -119,33 +120,36 @@ func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 			BloodGroup:       bloodGroup,
 			City:             city,
 			RegistrationDate: regDate})
+		donorsCount++
 	}
-	if err := rows.Err(); err != nil {
-		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal(err)
+	if donorsCount == 0 {
+		log.Printf("No donors found.")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err := rows.Err(); err != nil {
+			log.Printf(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(donors); err != nil {
+			panic(err)
+		}
 	}
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(donors); err != nil {
-		panic(err)
-	}
+
 }
 
 func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors")
 	acceptors := make([]Acceptor, 0)
 	rows, err := app.Database.Query(`SELECT * FROM acceptors;`)
-	switch {
-	case err != nil:
+	if err != nil {
 		log.Fatal(err)
-
-	case err == sql.ErrNoRows:
-		log.Printf("No acceptors found.")
-		w.WriteHeader(http.StatusNotFound)
 	}
 
 	defer rows.Close()
 
+	acceptorsCount := 0
 	for rows.Next() {
 		var id, name, lastname, bloodGroup, city, bloodCenter, regDate string
 		err := rows.Scan(&id, &name, &lastname, &bloodGroup, &city, &bloodCenter, &regDate)
@@ -161,15 +165,23 @@ func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 			City:             city,
 			BloodCenter:      bloodCenter,
 			RegistrationDate: regDate})
+		acceptorsCount++
 	}
-	if err := rows.Err(); err != nil {
-		log.Printf(err.Error())
-		log.Fatal(err)
+
+	if acceptorsCount == 0 {
+		log.Printf("No acceptors found.")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err := rows.Err(); err != nil {
+			log.Printf(err.Error())
+			log.Fatal(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(acceptors); err != nil {
+			panic(err)
+		}
 	}
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(acceptors); err != nil {
-		panic(err)
-	}
+
 }
 
 func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
@@ -191,16 +203,23 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 		&donor.BloodGroup,
 		&donor.City,
 		&donor.RegistrationDate)
-	if err != nil {
+
+	if err == sql.ErrNoRows {
 		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal("Database SELECT from donors failed")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err != nil {
+			log.Printf(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal("Database SELECT from donors failed")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(donor); err != nil {
+			panic(err)
+		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(donor); err != nil {
-		panic(err)
-	}
 }
 
 func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
@@ -219,16 +238,23 @@ func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 		&acceptor.City,
 		&acceptor.BloodCenter,
 		&acceptor.RegistrationDate)
-	if err != nil {
+
+	if err == sql.ErrNoRows {
 		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal("Database SELECT from acceptors failed")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err != nil {
+			log.Printf(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal("Database SELECT from acceptors failed")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(acceptor); err != nil {
+			panic(err)
+		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(acceptor); err != nil {
-		panic(err)
-	}
 }
 
 func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +276,12 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 		&donor.BloodGroup,
 		&donor.City,
 		&donor.RegistrationDate)
+
+	if err == sql.ErrNoRows {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		log.Fatal("Cannot update not existing donor.")
+	}
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -311,6 +343,12 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 		&acceptor.City,
 		&acceptor.BloodCenter,
 		&acceptor.RegistrationDate)
+
+	if err == sql.ErrNoRows {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		log.Fatal("Cannot update not existing acceptor.")
+	}
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -360,6 +398,7 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	foundDonors := 0
 	for rows.Next() {
 		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
 		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
@@ -378,15 +417,22 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 			BloodGroup:       bloodGroup,
 			City:             city,
 			RegistrationDate: regDate})
+		foundDonors++
 	}
-	if err := rows.Err(); err != nil {
-		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal(err)
-	}
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(donorsWithBloodGroup); err != nil {
-		panic(err)
+
+	if foundDonors == 0 {
+		log.Printf("No donors with the specific bloodGroup found.")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err := rows.Err(); err != nil {
+			log.Printf(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(donorsWithBloodGroup); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -404,6 +450,7 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request)
 	}
 	defer rows.Close()
 
+	foundDonors := 0
 	for rows.Next() {
 		var id, name, lastname, bloodGroup, city, bloodCenter, regDate string
 		err := rows.Scan(&id, &name, &lastname, &bloodGroup, &city, &bloodCenter, &regDate)
@@ -419,16 +466,25 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request)
 			City:             city,
 			BloodCenter:      bloodCenter,
 			RegistrationDate: regDate})
+
+		foundDonors++
 	}
-	if err := rows.Err(); err != nil {
-		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal(err)
+
+	if foundDonors == 0 {
+		log.Printf("No donors with the specific bloodGroup found.")
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		if err := rows.Err(); err != nil {
+			log.Printf(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatal(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(acceptorsWithBloodGroup); err != nil {
+			panic(err)
+		}
 	}
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(acceptorsWithBloodGroup); err != nil {
-		panic(err)
-	}
+
 }
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
@@ -468,7 +524,7 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal("Database INSERT to donors failed")
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 
 }
 
@@ -505,7 +561,7 @@ func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal("Database INSERT to acceptors failed")
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 
 }
 
@@ -515,6 +571,25 @@ func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := vars["id"]
 	if !ok {
 		log.Fatal("No ID in the path")
+	}
+
+	donor := Donor{}
+	errGet := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
+		&donor.ID,
+		&donor.FirstName,
+		&donor.LastName,
+		&donor.PhoneNumber,
+		&donor.Email,
+		&donor.Age,
+		&donor.Gender,
+		&donor.BloodGroup,
+		&donor.City,
+		&donor.RegistrationDate)
+
+	if errGet == sql.ErrNoRows {
+		log.Printf(errGet.Error())
+		w.WriteHeader(http.StatusNotFound)
+		log.Fatal("Cannot delete not existing donor.")
 	}
 
 	_, err := app.Database.Query(`DELETE FROM donors WHERE id=?`, id)
@@ -535,7 +610,21 @@ func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Fatal("No ID in the path")
 	}
+	acceptor := Acceptor{}
+	errGet := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
+		&acceptor.ID,
+		&acceptor.FirstName,
+		&acceptor.LastName,
+		&acceptor.BloodGroup,
+		&acceptor.City,
+		&acceptor.BloodCenter,
+		&acceptor.RegistrationDate)
 
+	if errGet == sql.ErrNoRows {
+		log.Printf(errGet.Error())
+		w.WriteHeader(http.StatusNotFound)
+		log.Fatal("Cannot delete not existing acceptor.")
+	}
 	_, err := app.Database.Query(`DELETE FROM acceptors WHERE id=?`, id)
 	if err != nil {
 		log.Printf(err.Error())

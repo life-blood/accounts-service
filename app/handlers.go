@@ -72,6 +72,11 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.updateDonorByID)
 
 	app.Router.
+		Methods("PUT").
+		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
+		HandlerFunc(app.updateAcceptorByID)
+
+	app.Router.
 		Methods("GET").
 		Path("/accounts/donors/bloodtype/{bloodGroup:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getDonorsByBloodGroup)
@@ -290,8 +295,55 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *App) updateAcceptorByID(w http.ResponseWriter, _ *http.Request) {
+func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/acceptors/:id")
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+	acceptor := Acceptor{}
+	err := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
+		&acceptor.ID,
+		&acceptor.FirstName,
+		&acceptor.LastName,
+		&acceptor.BloodGroup,
+		&acceptor.City,
+		&acceptor.BloodCenter,
+		&acceptor.RegistrationDate)
+	if err != nil {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database SELECT from acceptors failed")
+	}
+
+	stmt, err := app.Database.Prepare(`UPDATE acceptors SET name=?,lastName=?,city=?,bloodCenter=? WHERE id=?;`)
+	if err != nil {
+		panic(err.Error())
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	reqData := make(map[string]string)
+	json.Unmarshal(body, &reqData)
+
+	if firstName, exists := reqData["name"]; exists {
+		acceptor.FirstName = firstName
+	}
+	if lastName, exists := reqData["lastName"]; exists {
+		acceptor.LastName = lastName
+	}
+	if city, exists := reqData["city"]; exists {
+		acceptor.City = city
+	}
+	if bloodCenter, exists := reqData["bloodCenter"]; exists {
+		acceptor.BloodCenter = bloodCenter
+	}
+	_, err = stmt.Exec(acceptor.FirstName, acceptor.LastName, acceptor.City, acceptor.BloodCenter, acceptor.ID)
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {

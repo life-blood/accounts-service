@@ -4,10 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/lithammer/shortuuid"
 )
 
 // App is a wrapper struct over Router and Database used to manage db connections and endpoint requests centrally
@@ -35,12 +38,12 @@ func (app *App) SetupRouter() {
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/donors/{id:[0-9]+}").
+		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getDonorByID)
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/acceptors/{id:[0-9]+}").
+		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getAcceptorByID)
 
 	app.Router.
@@ -50,17 +53,17 @@ func (app *App) SetupRouter() {
 
 	app.Router.
 		Methods("PUT").
-		Path("/accounts/donors/{id:[0-9]+}").
+		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.updateDonorByID)
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/donors/{bloodGroup:[a-zA-Z0-9]+}").
+		Path("/accounts/donors/bloodtype/{bloodGroup:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getDonorsByBloodGroup)
 
 	app.Router.
 		Methods("GET").
-		Path("/accounts/acceptors/{bloodGroup:[a-zA-Z0-9]+}").
+		Path("/accounts/acceptors/bloodtype/{bloodGroup:[a-zA-Z0-9]+}").
 		HandlerFunc(app.getAcceptorsByBloodGroup)
 }
 
@@ -205,8 +208,35 @@ func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *App) updateDonorByID(w http.ResponseWriter, _ *http.Request) {
+func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/donors/:id")
+	// vars := mux.Vars(r)
+	// id, ok := vars["id"]
+	// if !ok {
+	// 	log.Fatal("No ID in the path")
+	// }
+	// donor := Donor{}
+	// err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
+	// 	&donor.ID,
+	// 	&donor.FirstName,
+	// 	&donor.LastName,
+	// 	&donor.PhoneNumber,
+	// 	&donor.Email,
+	// 	&donor.Age,
+	// 	&donor.Gender,
+	// 	&donor.BloodGroup,
+	// 	&donor.City,
+	// 	&donor.RegistrationDate)
+	// if err != nil {
+	// 	log.Printf(err.Error())
+	// 	log.Fatal("Database SELECT failed")
+	// }
+
+	// w.WriteHeader(http.StatusOK)
+	// if err := json.NewEncoder(w).Encode(donor); err != nil {
+	// 	panic(err)
+	// }
+
 }
 
 func (app *App) updateAcceptorByID(w http.ResponseWriter, _ *http.Request) {
@@ -214,7 +244,7 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Endpoint Hit: GET /accounts/donors/:bloodGroup")
+	log.Printf("Endpoint Hit: GET /accounts/donors/bloodtype/:bloodGroup")
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
@@ -257,7 +287,7 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Endpoint Hit: GET /accounts/acceptors/:bloodGroup")
+	log.Printf("Endpoint Hit: GET /accounts/acceptors/bloodtype/:bloodGroup")
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
@@ -298,23 +328,38 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request)
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/donors")
-	donor := Donor{ID: "14", FirstName: "Ivan", LastName: "Petrov", PhoneNumber: "0897656780", Email: "ivan@mail.bg", Age: "31", Gender: "Male", BloodGroup: "AB", City: "Kardzhali", RegistrationDate: "Sat Dec 12 17:53:21 EET 2010"}
-	_, err := app.Database.Exec(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
-								VALUES ('?','?','?','?','?','?','?','?','?', '?');`,
-		donor.ID,
-		donor.FirstName,
-		donor.LastName,
-		donor.PhoneNumber,
-		donor.Email,
-		donor.Age,
-		donor.Gender,
-		donor.BloodGroup,
-		donor.City,
-		donor.RegistrationDate)
+	stmt, err := app.Database.Prepare(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
+	VALUES (?,?,?,?,?,?,?,?,?,?);`)
+	if err != nil {
+		panic(err.Error())
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	reqData := make(map[string]string)
+	json.Unmarshal(body, &reqData)
+	id := shortuuid.New()
+	name := reqData["name"]
+	lastName := reqData["lastName"]
+	phone := reqData["phone"]
+	email := reqData["email"]
+	age := reqData["age"]
+	gender := reqData["gender"]
+	bloodGroup := reqData["bloodGroup"]
+	city := reqData["city"]
+	timeNow := time.Now()
+	regDate := timeNow.Format("2006-01-02 15:04:05")
+
+	_, err = stmt.Exec(id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	if err != nil {
 		log.Printf(err.Error())
-		log.Fatal("Database INSERT failed")
+		log.Fatal("Database INSERT to donors failed")
 	}
 	w.WriteHeader(http.StatusOK)
+
 }

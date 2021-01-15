@@ -228,33 +228,66 @@ func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/donors/:id")
-	// vars := mux.Vars(r)
-	// id, ok := vars["id"]
-	// if !ok {
-	// 	log.Fatal("No ID in the path")
-	// }
-	// donor := Donor{}
-	// err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
-	// 	&donor.ID,
-	// 	&donor.FirstName,
-	// 	&donor.LastName,
-	// 	&donor.PhoneNumber,
-	// 	&donor.Email,
-	// 	&donor.Age,
-	// 	&donor.Gender,
-	// 	&donor.BloodGroup,
-	// 	&donor.City,
-	// 	&donor.RegistrationDate)
-	// if err != nil {
-	// 	log.Printf(err.Error())
-	// 	log.Fatal("Database SELECT failed")
-	// }
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Fatal("No ID in the path")
+	}
+	donor := Donor{}
+	err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
+		&donor.ID,
+		&donor.FirstName,
+		&donor.LastName,
+		&donor.PhoneNumber,
+		&donor.Email,
+		&donor.Age,
+		&donor.Gender,
+		&donor.BloodGroup,
+		&donor.City,
+		&donor.RegistrationDate)
+	if err != nil {
+		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal("Database SELECT from donors failed")
+	}
 
-	// w.WriteHeader(http.StatusOK)
-	// if err := json.NewEncoder(w).Encode(donor); err != nil {
-	// 	panic(err)
-	// }
+	stmt, err := app.Database.Prepare(`UPDATE donors SET name=?,lastName=?,phone=?,email=?,age=?,gender=?,city=? WHERE id=?;`)
+	if err != nil {
+		panic(err.Error())
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	reqData := make(map[string]string)
+	json.Unmarshal(body, &reqData)
 
+	if firstName, exists := reqData["name"]; exists {
+		donor.FirstName = firstName
+	}
+	if lastName, exists := reqData["lastName"]; exists {
+		donor.LastName = lastName
+	}
+	if phone, exists := reqData["phone"]; exists {
+		donor.PhoneNumber = phone
+	}
+	if email, exists := reqData["email"]; exists {
+		donor.Email = email
+	}
+	if age, exists := reqData["age"]; exists {
+		donor.Age = age
+	}
+	if gender, exists := reqData["gender"]; exists {
+		donor.Gender = gender
+	}
+	if city, exists := reqData["city"]; exists {
+		donor.City = city
+	}
+
+	_, err = stmt.Exec(donor.FirstName, donor.LastName, donor.PhoneNumber, donor.Email, donor.Age, donor.Gender, donor.City, donor.ID)
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 func (app *App) updateAcceptorByID(w http.ResponseWriter, _ *http.Request) {
@@ -359,19 +392,21 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	}
 	reqData := make(map[string]string)
 	json.Unmarshal(body, &reqData)
-	id := shortuuid.New()
-	name := reqData["name"]
-	lastName := reqData["lastName"]
-	phone := reqData["phone"]
-	email := reqData["email"]
-	age := reqData["age"]
-	gender := reqData["gender"]
-	bloodGroup := reqData["bloodGroup"]
-	city := reqData["city"]
+	donor := Donor{}
+	donor.ID = shortuuid.New()
+	donor.FirstName = reqData["name"]
+	donor.LastName = reqData["lastName"]
+	donor.BloodGroup = reqData["bloodGroup"]
+	donor.City = reqData["city"]
+	donor.PhoneNumber = reqData["phone"]
+	donor.Email = reqData["email"]
+	donor.Age = reqData["age"]
+	donor.Gender = reqData["gender"]
+	donor.City = reqData["city"]
 	timeNow := time.Now()
-	regDate := timeNow.Format("2006-01-02 15:04:05")
+	donor.RegistrationDate = timeNow.Format("2006-01-02 15:04:05")
 
-	_, err = stmt.Exec(id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
+	_, err = stmt.Exec(donor.ID, donor.FirstName, donor.LastName, donor.PhoneNumber, donor.Email, donor.Age, donor.Gender, donor.BloodGroup, donor.City, donor.RegistrationDate)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -398,16 +433,17 @@ func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 	}
 	reqData := make(map[string]string)
 	json.Unmarshal(body, &reqData)
-	id := shortuuid.New()
-	name := reqData["name"]
-	lastName := reqData["lastName"]
-	bloodCenter := reqData["bloodCenter"]
-	bloodGroup := reqData["bloodGroup"]
-	city := reqData["city"]
+	acceptor := Acceptor{}
+	acceptor.ID = shortuuid.New()
+	acceptor.FirstName = reqData["name"]
+	acceptor.LastName = reqData["lastName"]
+	acceptor.BloodCenter = reqData["bloodCenter"]
+	acceptor.BloodGroup = reqData["bloodGroup"]
+	acceptor.City = reqData["city"]
 	timeNow := time.Now()
-	regDate := timeNow.Format("2006-01-02 15:04:05")
+	acceptor.RegistrationDate = timeNow.Format("2006-01-02 15:04:05")
 
-	_, err = stmt.Exec(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
+	_, err = stmt.Exec(acceptor.ID, acceptor.FirstName, acceptor.LastName, acceptor.BloodGroup, acceptor.City, acceptor.BloodCenter, acceptor.RegistrationDate)
 	if err != nil {
 		panic(err.Error())
 	}

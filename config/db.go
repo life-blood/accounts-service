@@ -46,7 +46,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 								lastName varchar(32),
 								bloodGroup varchar(32),
 								city varchar(50),
-								bloodCenter varchar(100),
+								bloodCenter varchar(250),
 								regDate varchar(32),
 								PRIMARY KEY (id));`)
 	if err != nil {
@@ -96,7 +96,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 	}
 
 	mockdata2, err := db.Prepare(`INSERT INTO acceptors(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
-								VALUES ('12','Ivan','Petrov','AB','Sofia', 'Pirogof', 'Sun Mar 15 02:44:15 EET 2019');`)
+								VALUES ('12','Ivan','Petrov','AB','Sofia', 'РЦ по трансфузионна хематология - Пловдив', 'Sun Mar 15 02:44:15 EET 2019');`)
 	if err != nil {
 		log.Printf(err.Error())
 	}
@@ -120,7 +120,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 	}
 
 	mockdata4, err := db.Prepare(`INSERT INTO acceptors(id, name, lastName, bloodGroup, city, bloodCenter, regDate)
-								VALUES ('2','Ivaylo','Yosifov','0','Plovdiv', 'Pulmed', 'Sun Mar 16 02:44:15 EET 2020');`)
+								VALUES ('2','Ivaylo','Yosifov','0','Plovdiv', 'РЦ по трансфузионна хематология - Варна', 'Sun Mar 16 02:44:15 EET 2020');`)
 	if err != nil {
 		log.Printf(err.Error())
 	}

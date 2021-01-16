@@ -47,7 +47,7 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.getDonorByID)
 
 	app.Router.
-		Methods("DELETE").
+		Methods("DELETE", "OPTIONS").
 		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.deleteDonorByID)
 
@@ -57,7 +57,7 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.getAcceptorByID)
 
 	app.Router.
-		Methods("DELETE").
+		Methods("DELETE", "OPTIONS").
 		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.deleteAcceptorByID)
 
@@ -67,12 +67,12 @@ func (app *App) SetupRouter() {
 		HandlerFunc(app.getAllAcceptors)
 
 	app.Router.
-		Methods("PUT").
+		Methods("PUT", "OPTIONS").
 		Path("/accounts/donors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.updateDonorByID)
 
 	app.Router.
-		Methods("PUT").
+		Methods("PUT", "OPTIONS").
 		Path("/accounts/acceptors/{id:[a-zA-Z0-9]+}").
 		HandlerFunc(app.updateAcceptorByID)
 
@@ -94,6 +94,10 @@ func (app *App) homePage(w http.ResponseWriter, _ *http.Request) {
 
 func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	donors := make([]Donor, 0)
 	rows, err := app.Database.Query(`SELECT * FROM donors;`)
 	if err != nil {
@@ -123,8 +127,8 @@ func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 		donorsCount++
 	}
 	if donorsCount == 0 {
+		w.WriteHeader(http.StatusOK)
 		log.Printf("No donors found.")
-		w.WriteHeader(http.StatusNotFound)
 	} else {
 		if err := rows.Err(); err != nil {
 			log.Printf(err.Error())
@@ -141,6 +145,10 @@ func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	acceptors := make([]Acceptor, 0)
 	rows, err := app.Database.Query(`SELECT * FROM acceptors;`)
 	if err != nil {
@@ -169,8 +177,9 @@ func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if acceptorsCount == 0 {
+		w.WriteHeader(http.StatusOK)
 		log.Printf("No acceptors found.")
-		w.WriteHeader(http.StatusNotFound)
+		// w.WriteHeader(http.StatusNotFound)
 	} else {
 		if err := rows.Err(); err != nil {
 			log.Printf(err.Error())
@@ -185,6 +194,10 @@ func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	log.Printf("Endpoint Hit: GET /accounts/donors/:id")
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
@@ -224,6 +237,10 @@ func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/:id")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
@@ -259,6 +276,15 @@ func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/donors/:id")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
@@ -329,6 +355,15 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/acceptors/:id")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
@@ -386,6 +421,10 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors/bloodtype/:bloodGroup")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
@@ -438,6 +477,10 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/bloodtype/:bloodGroup")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
@@ -489,6 +532,11 @@ func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request)
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/donors")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
 	stmt, err := app.Database.Prepare(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
 	VALUES (?,?,?,?,?,?,?,?,?,?);`)
 	if err != nil {
@@ -530,6 +578,11 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/acceptors")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
 	stmt, err := app.Database.Prepare(`INSERT INTO acceptors (id, name, lastName, bloodGroup, city, bloodCenter, regDate)
 	VALUES (?,?,?,?,?,?,?);`)
 	if err != nil {
@@ -567,6 +620,15 @@ func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: DELETE /accounts/donors/:id")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
@@ -600,11 +662,22 @@ func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("X"))
 
 }
 
 func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: DELETE /accounts/acceptor/:id")
+
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {

@@ -9,7 +9,7 @@ import (
 )
 
 func CreateDatabaseConn() (*sql.DB, error) {
-	serverName := "localhost:3306"
+	serverName := "localhost:3307"
 	user := "docker"
 	password := "password"
 	dbName := "accounts"

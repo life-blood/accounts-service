@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"log"
 	"net/http"
 
@@ -9,13 +10,13 @@ import (
 	db "github.com/life-blood/accounts-service/config"
 )
 
-const port = 4200
-
 func main() {
 	database, err := db.CreateDatabaseConn()
 	if err != nil {
 		log.Fatal("Database connection failed: %s", err.Error())
 	}
+
+	port := os.Getenv("PORT")
 
 	app := &app.App{
 		Router:   mux.NewRouter().StrictSlash(true),
@@ -24,5 +25,5 @@ func main() {
 
 	app.SetupRouter()
 	log.Printf("Starting accounts microservice on port %d", port)
-	log.Fatal(http.ListenAndServe(":4200", app.Router))
+	log.Fatal(http.ListenAndServe(":" + port, app.Router))
 }

@@ -9,10 +9,10 @@ import (
 )
 
 func CreateDatabaseConn() (*sql.DB, error) {
-	serverName := "localhost:3307"
-	user := "docker"
-	password := "password"
-	dbName := "accounts"
+	serverName := "eu-cdbr-west-03.cleardb.net"
+	user := "b95bd97339bf08"
+	password := "4446ccf7"
+	dbName := "heroku_1951e05a891a719"
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", user, password, serverName, dbName)
 
 	db, err := sql.Open("mysql", connectionString)
@@ -20,7 +20,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 		return nil, err
 	}
 
-	_, err = db.Exec("USE accounts")
+	_, err = db.Exec("USE heroku_1951e05a891a719")
 	if err != nil {
 		log.Printf(err.Error())
 	} else {

@@ -4,16 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func CreateDatabaseConn() (*sql.DB, error) {
-	serverName := "localhost:3307"
-	user := "docker"
-	password := "password"
-	dbName := "accounts"
-	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", user, password, serverName, dbName)
+	serverName := fmt.Sprintf("localhost:%s", os.Getenv("DB_PORT"))
+	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), serverName, os.Getenv("DB_NAME"))
 
 	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
@@ -22,7 +20,7 @@ func CreateDatabaseConn() (*sql.DB, error) {
 
 	_, err = db.Exec("USE accounts")
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	} else {
 		log.Printf("DB selected successfully...")
 	}
@@ -30,11 +28,11 @@ func CreateDatabaseConn() (*sql.DB, error) {
 	stmt, err := db.Prepare(`DROP TABLE IF EXISTS donors, acceptors`)
 
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	}
 	_, err = stmt.Exec()
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	} else {
 		log.Printf("Acceptors table dropped successfully...")
 		log.Printf("Donors table dropped successfully...")
@@ -50,11 +48,11 @@ func CreateDatabaseConn() (*sql.DB, error) {
 								regDate varchar(32),
 								PRIMARY KEY (id));`)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	}
 	_, err = stmtAcceptors.Exec()
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	} else {
 		log.Printf("Acceptors table created successfully...")
 	}
@@ -74,11 +72,11 @@ func CreateDatabaseConn() (*sql.DB, error) {
 						);`)
 
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	}
 	_, err = stmtDonors.Exec()
 	if err != nil {
-		log.Printf(err.Error())
+		log.Fatal(err.Error())
 	} else {
 		log.Printf("Donors table created successfully...")
 	}

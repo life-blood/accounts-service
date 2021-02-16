@@ -24,9 +24,15 @@ func main() {
 		log.Fatalf("Database connection failed: %s", err.Error())
 	}
 
+	db.InitializeDatabase(database)
+	db.PopulateWithMockData(database)
+
+	donorsRepo := app.NewDonorsMySQL(database)
+
 	app := &app.App{
-		Router:   mux.NewRouter().StrictSlash(true),
-		Database: database,
+		Router:     mux.NewRouter().StrictSlash(true),
+		Database:   database,
+		DonorsRepo: donorsRepo,
 	}
 
 	app.SetupRouter()

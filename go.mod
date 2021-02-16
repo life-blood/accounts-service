@@ -8,5 +8,6 @@ require (
 	github.com/google/uuid v1.1.5 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/johan-lejdung/go-microservice-api-guide v0.0.0-20181123132308-5eb40dfd400d // indirect
+	github.com/joho/godotenv v1.3.0
 	github.com/lithammer/shortuuid v3.0.0+incompatible
 )

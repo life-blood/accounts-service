@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/life-blood/accounts-service/app"
 	db "github.com/life-blood/accounts-service/config"
 )
@@ -12,9 +13,15 @@ import (
 const port = 4200
 
 func main() {
+	//load .env file from given path
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	database, err := db.CreateDatabaseConn()
 	if err != nil {
-		log.Fatal("Database connection failed: %s", err.Error())
+		log.Fatalf("Database connection failed: %s", err.Error())
 	}
 
 	app := &app.App{

@@ -100,6 +100,38 @@ func (r *DonorsMySQL) Update(donor Donor) (Donor, error) {
 	return donor, err
 }
 
+//GetByBloodGroup search for donors with specific blood group
+func (r *DonorsMySQL) GetByBloodGroup(bloodGroup string) ([]Donor, error) {
+	donors := make([]Donor, 0)
+	rows, err := r.db.Query(`SELECT * FROM donors WHERE bloodGroup=?`, bloodGroup)
+	if err != nil {
+		log.Printf(err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
+		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
+		if err != nil {
+			log.Printf(err.Error())
+		}
+
+		donors = append(donors, Donor{
+			ID:               id,
+			FirstName:        name,
+			LastName:         lastname,
+			PhoneNumber:      phone,
+			Email:            email,
+			Age:              age,
+			Gender:           gender,
+			BloodGroup:       bloodGroup,
+			City:             city,
+			RegistrationDate: regDate})
+	}
+
+	return donors, err
+}
+
 //DeleteByID check whether donor exists and remove
 func (r *DonorsMySQL) DeleteByID(id string) error {
 	_, err := r.db.Query(`DELETE FROM donors WHERE id=?`, id)

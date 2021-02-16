@@ -28,11 +28,12 @@ func main() {
 	db.PopulateWithMockData(database)
 
 	donorsRepo := app.NewDonorsMySQL(database)
+	acceptorsRepo := app.NewAcceptorsMySQL(database)
 
 	app := &app.App{
-		Router:     mux.NewRouter().StrictSlash(true),
-		Database:   database,
-		DonorsRepo: donorsRepo,
+		Router:        mux.NewRouter().StrictSlash(true),
+		DonorsRepo:    donorsRepo,
+		AcceptorsRepo: acceptorsRepo,
 	}
 
 	app.SetupRouter()

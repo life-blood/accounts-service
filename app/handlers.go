@@ -15,8 +15,9 @@ import (
 
 // App is a wrapper struct over Router and Database used to manage db connections and endpoint requests centrally
 type App struct {
-	Router   *mux.Router
-	Database *sql.DB
+	Router        *mux.Router
+	DonorsRepo    *DonorsMySQL
+	AcceptorsRepo *AcceptorsMySQL
 }
 
 // SetupRouter is used to provide mapping between different endpoints hit and handler functions
@@ -94,190 +95,89 @@ func (app *App) homePage(w http.ResponseWriter, _ *http.Request) {
 
 func (app *App) getAllDonors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-	donors := make([]Donor, 0)
-	rows, err := app.Database.Query(`SELECT * FROM donors;`)
+
+	setupCORS(&w, r)
+
+	donors, err := app.DonorsRepo.GetAll()
+
 	if err != nil {
-		log.Printf(err.Error())
-	}
-	defer rows.Close()
-
-	donorsCount := 0
-	for rows.Next() {
-		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
-		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
-		if err != nil {
-			log.Printf(err.Error())
-		}
-
-		donors = append(donors, Donor{
-			ID:               id,
-			FirstName:        name,
-			LastName:         lastname,
-			PhoneNumber:      phone,
-			Email:            email,
-			Age:              age,
-			Gender:           gender,
-			BloodGroup:       bloodGroup,
-			City:             city,
-			RegistrationDate: regDate})
-		donorsCount++
-	}
-	if donorsCount == 0 {
-		w.WriteHeader(http.StatusOK)
-		log.Printf("No donors found.")
+		log.Print(err)
+		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		if err := rows.Err(); err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-		}
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(donors); err != nil {
 			log.Printf(err.Error())
 		}
 	}
-
 }
 
 func (app *App) getAllAcceptors(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-	acceptors := make([]Acceptor, 0)
-	rows, err := app.Database.Query(`SELECT * FROM acceptors;`)
+	setupCORS(&w, r)
+
+	acceptors, err := app.AcceptorsRepo.GetAll()
+
 	if err != nil {
-		log.Printf(err.Error())
-	}
-
-	defer rows.Close()
-
-	acceptorsCount := 0
-	for rows.Next() {
-		var id, name, lastname, bloodGroup, city, bloodCenter, regDate string
-		err := rows.Scan(&id, &name, &lastname, &bloodGroup, &city, &bloodCenter, &regDate)
-		if err != nil {
-			log.Printf(err.Error())
-		}
-
-		acceptors = append(acceptors, Acceptor{
-			ID:               id,
-			FirstName:        name,
-			LastName:         lastname,
-			BloodGroup:       bloodGroup,
-			City:             city,
-			BloodCenter:      bloodCenter,
-			RegistrationDate: regDate})
-		acceptorsCount++
-	}
-
-	if acceptorsCount == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		log.Printf("No acceptors found.")
+		log.Printf("Could not load acceptors.")
 	} else {
-		if err := rows.Err(); err != nil {
-			log.Printf(err.Error())
-		}
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(acceptors); err != nil {
 			log.Printf(err.Error())
 		}
 	}
-
 }
 
 func (app *App) getDonorByID(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	log.Printf("Endpoint Hit: GET /accounts/donors/:id")
+	setupCORS(&w, r)
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
 		log.Printf("No ID in the path for GET /accounts/donors/:id")
 	}
-	donor := Donor{}
-	err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
-		&donor.ID,
-		&donor.FirstName,
-		&donor.LastName,
-		&donor.PhoneNumber,
-		&donor.Email,
-		&donor.Age,
-		&donor.Gender,
-		&donor.BloodGroup,
-		&donor.City,
-		&donor.RegistrationDate)
 
-	if err == sql.ErrNoRows {
+	donor, err := app.DonorsRepo.GetByID(id)
+
+	if err != nil {
 		log.Printf(err.Error())
-		w.WriteHeader(http.StatusNotFound)
-	} else {
-		if err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Database SELECT from donors failed for GET /accounts/donors/:id")
-		}
-
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(donor); err != nil {
-			log.Printf(err.Error())
-		}
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(donor); err != nil {
+		log.Printf(err.Error())
+	}
 }
 
 func (app *App) getAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/:id")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
+
 	vars := mux.Vars(r)
 	id, ok := vars["id"]
 	if !ok {
 		log.Printf("No ID in the path for GET /accounts/acceptors/:id")
 	}
-	acceptor := Acceptor{}
-	err := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
-		&acceptor.ID,
-		&acceptor.FirstName,
-		&acceptor.LastName,
-		&acceptor.BloodGroup,
-		&acceptor.City,
-		&acceptor.BloodCenter,
-		&acceptor.RegistrationDate)
 
-	if err == sql.ErrNoRows {
+	acceptor, err := app.AcceptorsRepo.GetByID(id)
+
+	if err != nil {
 		log.Printf(err.Error())
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Database SELECT from acceptors failed for GET /accounts/acceptors/:id")
 	} else {
-		if err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Database SELECT from acceptors failed for GET /accounts/acceptors/:id")
-		}
-
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(acceptor); err != nil {
 			log.Printf(err.Error())
 		}
 	}
-
 }
 
 func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/donors/:id")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
+	setupCORS(&w, r)
 	if (*r).Method == "OPTIONS" {
 		return
 	}
@@ -287,18 +187,8 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Printf("No ID in the path for PUT /accounts/donors/:id")
 	}
-	donor := Donor{}
-	err := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
-		&donor.ID,
-		&donor.FirstName,
-		&donor.LastName,
-		&donor.PhoneNumber,
-		&donor.Email,
-		&donor.Age,
-		&donor.Gender,
-		&donor.BloodGroup,
-		&donor.City,
-		&donor.RegistrationDate)
+
+	donor, err := app.DonorsRepo.GetByID(id)
 
 	if err == sql.ErrNoRows {
 		log.Printf(err.Error())
@@ -311,10 +201,6 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Database SELECT from donors failed for PUT /accounts/donors/:id")
 	}
 
-	stmt, err := app.Database.Prepare(`UPDATE donors SET name=?,lastName=?,phone=?,email=?,age=?,gender=?,city=? WHERE id=?;`)
-	if err != nil {
-		log.Printf(err.Error())
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf(err.Error())
@@ -344,18 +230,15 @@ func (app *App) updateDonorByID(w http.ResponseWriter, r *http.Request) {
 		donor.City = city
 	}
 
-	_, err = stmt.Exec(donor.FirstName, donor.LastName, donor.PhoneNumber, donor.Email, donor.Age, donor.Gender, donor.City, donor.ID)
+	_, err = app.DonorsRepo.Update(donor)
 	if err != nil {
-		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
 func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: PUT /accounts/acceptors/:id")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
 
 	if (*r).Method == "OPTIONS" {
 		return
@@ -366,35 +249,18 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Printf("No ID in the path PUT /accounts/acceptors/:id")
 	}
-	acceptor := Acceptor{}
-	err := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
-		&acceptor.ID,
-		&acceptor.FirstName,
-		&acceptor.LastName,
-		&acceptor.BloodGroup,
-		&acceptor.City,
-		&acceptor.BloodCenter,
-		&acceptor.RegistrationDate)
+	acceptor, err := app.AcceptorsRepo.GetByID(id)
 
-	if err == sql.ErrNoRows {
+	if err != nil {
 		log.Printf(err.Error())
-		w.WriteHeader(http.StatusNotFound)
 		log.Printf("Cannot update unexisting acceptor.")
 	}
-	if err != nil {
-		log.Printf(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("Database SELECT from acceptors failed for PUT /accounts/acceptors/:id")
-	}
 
-	stmt, err := app.Database.Prepare(`UPDATE acceptors SET name=?,lastName=?,city=?,bloodCenter=? WHERE id=?;`)
-	if err != nil {
-		log.Printf(err.Error())
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf(err.Error())
 	}
+
 	reqData := make(map[string]string)
 	json.Unmarshal(body, &reqData)
 
@@ -410,62 +276,31 @@ func (app *App) updateAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	if bloodCenter, exists := reqData["bloodCenter"]; exists {
 		acceptor.BloodCenter = bloodCenter
 	}
-	_, err = stmt.Exec(acceptor.FirstName, acceptor.LastName, acceptor.City, acceptor.BloodCenter, acceptor.ID)
+
+	err = app.AcceptorsRepo.Update(acceptor)
+
 	if err != nil {
-		log.Printf(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
 func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/donors/bloodtype/:bloodGroup")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
 		log.Printf("No bloodGroup in the path for GET /accounts/donors/bloodtype/:bloodGroup")
 	}
-	donorsWithBloodGroup := make([]Donor, 0)
-	rows, err := app.Database.Query(`SELECT * FROM donors WHERE bloodGroup=?`, bloodGroup)
+
+	donors, err := app.DonorsRepo.GetByBloodGroup(bloodGroup)
+
 	if err != nil {
 		log.Printf(err.Error())
-	}
-	defer rows.Close()
-
-	foundDonors := 0
-	for rows.Next() {
-		var id, name, lastname, phone, email, age, gender, bloodGroup, city, regDate string
-		err := rows.Scan(&id, &name, &lastname, &phone, &email, &age, &gender, &bloodGroup, &city, &regDate)
-		if err != nil {
-			log.Printf(err.Error())
-		}
-
-		donorsWithBloodGroup = append(donorsWithBloodGroup, Donor{
-			ID:               id,
-			FirstName:        name,
-			LastName:         lastname,
-			PhoneNumber:      phone,
-			Email:            email,
-			Age:              age,
-			Gender:           gender,
-			BloodGroup:       bloodGroup,
-			City:             city,
-			RegistrationDate: regDate})
-		foundDonors++
-	}
-
-	if foundDonors == 0 {
-		log.Printf("No donors with the specific bloodGroup found.")
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		if err := rows.Err(); err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-		}
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(donorsWithBloodGroup); err != nil {
+		if err := json.NewEncoder(w).Encode(donors); err != nil {
 			log.Printf(err.Error())
 		}
 	}
@@ -473,71 +308,30 @@ func (app *App) getDonorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) getAcceptorsByBloodGroup(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: GET /accounts/acceptors/bloodtype/:bloodGroup")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
 	vars := mux.Vars(r)
 	bloodGroup, ok := vars["bloodGroup"]
 	if !ok {
 		log.Printf("No bloodGroup in the path for GET /accounts/acceptors/bloodtype/:bloodGroup")
 	}
-	acceptorsWithBloodGroup := make([]Acceptor, 0)
-	rows, err := app.Database.Query(`SELECT * FROM acceptors WHERE bloodGroup=?`, bloodGroup)
+
+	acceptors, err := app.AcceptorsRepo.GetByBloodGroup(bloodGroup)
+
 	if err != nil {
-		log.Printf(err.Error())
-	}
-	defer rows.Close()
-
-	foundDonors := 0
-	for rows.Next() {
-		var id, name, lastname, bloodGroup, city, bloodCenter, regDate string
-		err := rows.Scan(&id, &name, &lastname, &bloodGroup, &city, &bloodCenter, &regDate)
-		if err != nil {
-			log.Printf(err.Error())
-		}
-
-		acceptorsWithBloodGroup = append(acceptorsWithBloodGroup, Acceptor{
-			ID:               id,
-			FirstName:        name,
-			LastName:         lastname,
-			BloodGroup:       bloodGroup,
-			City:             city,
-			BloodCenter:      bloodCenter,
-			RegistrationDate: regDate})
-
-		foundDonors++
-	}
-
-	if foundDonors == 0 {
 		log.Printf("No donors with the specific bloodGroup found.")
 		w.WriteHeader(http.StatusNotFound)
 	} else {
-		if err := rows.Err(); err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf(err.Error())
-		}
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(acceptorsWithBloodGroup); err != nil {
+		if err := json.NewEncoder(w).Encode(acceptors); err != nil {
 			log.Printf(err.Error())
 		}
 	}
-
 }
 
 func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/donors")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
 
-	stmt, err := app.Database.Prepare(`INSERT INTO donors (id, name, lastName, phone, email, age, gender, bloodGroup, city, regDate)
-	VALUES (?,?,?,?,?,?,?,?,?,?);`)
-	if err != nil {
-		log.Printf(err.Error())
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf(err.Error())
@@ -558,32 +352,21 @@ func (app *App) addDonor(w http.ResponseWriter, r *http.Request) {
 	timeNow := time.Now()
 	donor.RegistrationDate = timeNow.Format("2006-01-02 15:04:05")
 
-	_, err = stmt.Exec(donor.ID, donor.FirstName, donor.LastName, donor.PhoneNumber, donor.Email, donor.Age, donor.Gender, donor.BloodGroup, donor.City, donor.RegistrationDate)
-	if err != nil {
-		log.Printf(err.Error())
-	}
+	app.DonorsRepo.Create(donor)
 
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Database INSERT to donors failed")
+	} else {
+		w.WriteHeader(http.StatusCreated)
 	}
-	w.WriteHeader(http.StatusCreated)
-
 }
 
 func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: POST /accounts/acceptors")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	setupCORS(&w, r)
 
-	stmt, err := app.Database.Prepare(`INSERT INTO acceptors (id, name, lastName, bloodGroup, city, bloodCenter, regDate)
-	VALUES (?,?,?,?,?,?,?);`)
-	if err != nil {
-		log.Printf(err.Error())
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf(err.Error())
@@ -600,27 +383,21 @@ func (app *App) addAcceptor(w http.ResponseWriter, r *http.Request) {
 	timeNow := time.Now()
 	acceptor.RegistrationDate = timeNow.Format("2006-01-02 15:04:05")
 
-	_, err = stmt.Exec(acceptor.ID, acceptor.FirstName, acceptor.LastName, acceptor.BloodGroup, acceptor.City, acceptor.BloodCenter, acceptor.RegistrationDate)
-	if err != nil {
-		log.Printf(err.Error())
-	}
+	err = app.AcceptorsRepo.Create(acceptor)
 
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Database INSERT to acceptors failed")
+	} else {
+		w.WriteHeader(http.StatusCreated)
 	}
-	w.WriteHeader(http.StatusCreated)
-
 }
 
 func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: DELETE /accounts/donors/:id")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
+	setupCORS(&w, r)
 	if (*r).Method == "OPTIONS" {
 		return
 	}
@@ -631,45 +408,21 @@ func (app *App) deleteDonorByID(w http.ResponseWriter, r *http.Request) {
 		log.Printf("No ID in the path for DELETE /accounts/donors/:id")
 	}
 
-	donor := Donor{}
-	errGet := app.Database.QueryRow(`SELECT * FROM donors WHERE id=?`, id).Scan(
-		&donor.ID,
-		&donor.FirstName,
-		&donor.LastName,
-		&donor.PhoneNumber,
-		&donor.Email,
-		&donor.Age,
-		&donor.Gender,
-		&donor.BloodGroup,
-		&donor.City,
-		&donor.RegistrationDate)
-
-	if errGet == sql.ErrNoRows {
-		log.Printf(errGet.Error())
-		w.WriteHeader(http.StatusNotFound)
-		log.Printf("Cannot delete unexisting donor.")
-	}
-
-	_, err := app.Database.Query(`DELETE FROM donors WHERE id=?`, id)
+	err := app.DonorsRepo.DeleteByID(id)
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Database DELETE failed for DELETE /accounts/donors/:id")
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("X"))
 	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("X"))
-
 }
 
 func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Endpoint Hit: DELETE /accounts/acceptor/:id")
 
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
+	setupCORS(&w, r)
 	if (*r).Method == "OPTIONS" {
 		return
 	}
@@ -679,22 +432,7 @@ func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Printf("No ID in the path for DELETE /accounts/acceptor/:id")
 	}
-	acceptor := Acceptor{}
-	errGet := app.Database.QueryRow(`SELECT * FROM acceptors WHERE id=?`, id).Scan(
-		&acceptor.ID,
-		&acceptor.FirstName,
-		&acceptor.LastName,
-		&acceptor.BloodGroup,
-		&acceptor.City,
-		&acceptor.BloodCenter,
-		&acceptor.RegistrationDate)
-
-	if errGet == sql.ErrNoRows {
-		log.Printf(errGet.Error())
-		w.WriteHeader(http.StatusNotFound)
-		log.Printf("Cannot delete unexisting acceptor.")
-	}
-	_, err := app.Database.Query(`DELETE FROM acceptors WHERE id=?`, id)
+	err := app.AcceptorsRepo.DeleteByID(id)
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -702,5 +440,10 @@ func (app *App) deleteAcceptorByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
 
+func setupCORS(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
